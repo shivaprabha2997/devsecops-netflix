@@ -2,13 +2,14 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = "veeradockerhub/netflix-clone"
-        IMAGE_TAG  = "latest"
-        KUBE_CONFIG = "/root/.kube/config"
+        DOCKER_HUB_USER = 'veeradockerhub'
+        DOCKER_HUB_PASS = credentials('docker-hub-pass') // Replace with your Jenkins secret ID
+        IMAGE_NAME = 'netflix-clone'
+        K8S_DEPLOYMENT = 'k8s/deployment.yaml'
+        K8S_SERVICE = 'k8s/service.yaml'
     }
 
     stages {
-
         stage('Checkout Code') {
             steps {
                 git branch: 'main', url: 'https://github.com/veeraprasadkoduri-cmd/devsecops-netflix.git'
@@ -17,27 +18,25 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                sh 'npm install || true'
+                sh 'npm install'
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
+                sh """
+                   docker build -t $DOCKER_HUB_USER/$IMAGE_NAME:latest .
+                """
             }
         }
 
         stage('Docker Login & Push') {
             steps {
-                script {
-                    if (credentialsExists('docker-hub-pass')) {
-                        withCredentials([usernamePassword(credentialsId: 'docker-hub-pass', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
-                            sh 'echo $PASS | docker login -u $USER --password-stdin'
-                            sh "docker push ${IMAGE_NAME}:${IMAGE_TAG}"
-                        }
-                    } else {
-                        echo "⚠️ Docker Hub credentials not found. Skipping push."
-                    }
+                withCredentials([string(credentialsId: 'docker-hub-pass', variable: 'PASS')]) {
+                    sh """
+                        echo $PASS | docker login -u $DOCKER_HUB_USER --password-stdin
+                        docker push $DOCKER_HUB_USER/$IMAGE_NAME:latest
+                    """
                 }
             }
         }
@@ -45,41 +44,28 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 sh """
-                    kubectl apply -f k8s/deployment.yaml
-                    kubectl apply -f k8s/service.yaml
+                   kubectl apply -f $K8S_DEPLOYMENT
+                   kubectl apply -f $K8S_SERVICE
                 """
             }
         }
 
         stage('Verify Deployment') {
             steps {
-                sh 'kubectl get pods -A'
-                sh 'kubectl get svc'
+                sh """
+                   kubectl get pods
+                   kubectl get svc
+                """
             }
         }
     }
 
     post {
         success {
-            echo "✅ Pipeline Succeeded!"
+            echo "✅ Pipeline completed successfully!"
         }
         failure {
-            echo "❌ Pipeline Failed!"
+            echo "❌ Pipeline failed!"
         }
-    }
-}
-
-// Helper function to check if credentials exist
-def credentialsExists(id) {
-    try {
-        def c = com.cloudbees.plugins.credentials.CredentialsProvider.lookupCredentials(
-            com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials.class,
-            Jenkins.instance,
-            null,
-            null
-        ).find { it.id == id }
-        return c != null
-    } catch (e) {
-        return false
     }
 }
