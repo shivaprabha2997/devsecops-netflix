@@ -9,7 +9,7 @@ pipeline {
 
         stage('Clone Code') {
             steps {
-                git 'https://github.com/veeraprasadkoduri-cmd/devsecops-netflix.git'
+                git branch: 'main', url: 'https://github.com/veeraprasadkoduri-cmd/devsecops-netflix.git'
             }
         }
 
