@@ -3,6 +3,7 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = "veeradockerhub/netflix-clone"
+        KUBE_CONFIG = "/root/.kube/config" // path to your kubeconfig
     }
 
     stages {
@@ -16,22 +17,6 @@ pipeline {
         stage('Clone Code') {
             steps {
                 git branch: 'main', url: 'https://github.com/veeraprasadkoduri-cmd/devsecops-netflix.git'
-            }
-        }
-
-        // 🔍 DEBUG STAGE (VERY IMPORTANT)
-        stage('Check Files') {
-            steps {
-                sh '''
-                echo "Current Directory:"
-                pwd
-
-                echo "Files in Workspace:"
-                ls -l
-
-                echo "Full Structure:"
-                ls -R
-                '''
             }
         }
 
@@ -53,27 +38,23 @@ pipeline {
                     sh '''
                     rm -rf ~/.docker
                     echo "$PASS" | docker login -u "$USER" --password-stdin
+                    docker image prune -af   # delete old images
                     docker push $DOCKER_IMAGE:latest
                     '''
                 }
             }
         }
 
-        // 🚀 AUTO DETECT DEPLOY
         stage('Deploy to Kubernetes') {
             steps {
+                // Ensure kubeconfig is available
+                sh 'export KUBECONFIG=$KUBE_CONFIG'
+
+                // Apply deployment and service
                 sh '''
-                if [ -d "kubernetes" ]; then
-                    echo "Using kubernetes folder"
-                    kubectl apply -f kubernetes/
-                elif [ -d "Kubernetes" ]; then
-                    echo "Using Kubernetes folder"
-                    kubectl apply -f Kubernetes/
-                else
-                    echo "Applying YAML files from root"
-                    kubectl apply -f deployment.yml
-                    kubectl apply -f service.yml
-                fi
+                kubectl apply -f Kubernetes/deployment.yml
+                kubectl apply -f Kubernetes/service.yml
+                kubectl rollout status deployment/netflix-app
                 '''
             }
         }
@@ -90,7 +71,7 @@ pipeline {
 
     post {
         success {
-            echo "✅ Full CI/CD Pipeline Success!"
+            echo "✅ Full CI/CD Pipeline Success! Your app should be live with LoadBalancer."
         }
         failure {
             echo "❌ Pipeline Failed!"
