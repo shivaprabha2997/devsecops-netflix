@@ -7,6 +7,7 @@ pipeline {
         IMAGE_TAG  = 'latest'
         KUBE_DEPLOY_PATH = 'Kubernetes/deployment.yml'
         KUBE_SERVICE_PATH = 'Kubernetes/service.yml'
+        KUBECONFIG_PATH = '/var/lib/jenkins/.kube/config'  // <-- Explicit kubeconfig
     }
 
     stages {
@@ -31,7 +32,7 @@ pipeline {
         stage('Docker Login & Push') {
             steps {
                 withCredentials([usernamePassword(
-                    credentialsId: 'docker-creds',  // <- Corrected ID
+                    credentialsId: 'docker-creds',  // <- Correct DockerHub credential ID
                     usernameVariable: 'DOCKER_USER', 
                     passwordVariable: 'DOCKER_PASS')]) {
                     
@@ -46,21 +47,23 @@ pipeline {
 
         stage('Deploy to Kubernetes') {
             steps {
-                sh '''
+                sh """
+                    export KUBECONFIG=${KUBECONFIG_PATH}
                     kubectl apply -f ${KUBE_DEPLOY_PATH}
                     kubectl apply -f ${KUBE_SERVICE_PATH}
-                '''
+                """
             }
         }
 
         stage('Verify Deployment') {
             steps {
-                sh '''
+                sh """
+                    export KUBECONFIG=${KUBECONFIG_PATH}
                     echo 'Waiting for pods to be ready...'
                     kubectl rollout status deployment/netflix-app --timeout=120s
                     kubectl get pods -o wide
                     kubectl get svc -o wide
-                '''
+                """
             }
         }
     }
