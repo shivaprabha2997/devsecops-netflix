@@ -45,14 +45,14 @@ pipeline {
             }
         }
 
-        stage('Deploy to Kubernetes') {
-            steps {
-                sh '''
-                kubectl apply -f Kubernetes/deployment.yaml
-                kubectl apply -f Kubernetes/service.yaml
-                '''
-            }
-        }
+       stage('Deploy to Kubernetes') {
+    steps {
+        sh '''
+        kubectl apply -f kubernetes/deployment.yml
+        kubectl apply -f kubernetes/service.yml
+        '''
+    }
+}
 
         stage('Verify Deployment') {
             steps {
