@@ -7,6 +7,12 @@ pipeline {
 
     stages {
 
+        stage('Clean Workspace') {
+            steps {
+                cleanWs()
+            }
+        }
+
         stage('Clone Code') {
             steps {
                 git branch: 'main', url: 'https://github.com/veeraprasadkoduri-cmd/devsecops-netflix.git'
@@ -27,8 +33,11 @@ pipeline {
 
         stage('Login to DockerHub') {
             steps {
+                sh 'docker logout || true'
                 withCredentials([usernamePassword(credentialsId: 'docker-creds', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
-                    sh 'echo $PASS | docker login -u $USER --password-stdin'
+                    sh '''
+                    echo $PASS | docker login -u $USER --password-stdin
+                    '''
                 }
             }
         }
@@ -51,6 +60,15 @@ pipeline {
                 sh 'kubectl get pods'
                 sh 'kubectl get svc'
             }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ Pipeline executed successfully!"
+        }
+        failure {
+            echo "❌ Pipeline failed. Check logs."
         }
     }
 }
