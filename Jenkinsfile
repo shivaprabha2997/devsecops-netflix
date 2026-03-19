@@ -5,8 +5,8 @@ pipeline {
         DOCKER_HUB = 'veeradockerhub'
         IMAGE_NAME = 'netflix-clone'
         IMAGE_TAG  = 'latest'
-        KUBE_DEPLOY_PATH = 'k8s/deployment.yaml'
-        KUBE_SERVICE_PATH = 'k8s/service.yaml'
+        KUBE_DEPLOY_PATH = 'Kubernetes/deployment.yml'
+        KUBE_SERVICE_PATH = 'Kubernetes/service.yml'
     }
 
     stages {
@@ -30,17 +30,11 @@ pipeline {
 
         stage('Docker Login & Push') {
             steps {
-                script {
-                    if (credentials('docker-hub-pass')) {
-                        withCredentials([usernamePassword(credentialsId: 'docker-hub-pass', 
-                                                          usernameVariable: 'DOCKER_USER', 
-                                                          passwordVariable: 'DOCKER_PASS')]) {
-                            sh "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin"
-                            sh "docker push ${DOCKER_HUB}/${IMAGE_NAME}:${IMAGE_TAG}"
-                        }
-                    } else {
-                        echo "⚠️ Docker Hub credentials not found. Skipping push."
-                    }
+                withCredentials([usernamePassword(credentialsId: 'docker-hub-pass', 
+                                                  usernameVariable: 'DOCKER_USER', 
+                                                  passwordVariable: 'DOCKER_PASS')]) {
+                    sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
+                    sh "docker push ${DOCKER_HUB}/${IMAGE_NAME}:${IMAGE_TAG}"
                 }
             }
         }
@@ -54,8 +48,12 @@ pipeline {
 
         stage('Verify Deployment') {
             steps {
-                sh "kubectl get pods -o wide"
-                sh "kubectl get svc -o wide"
+                sh """
+                echo 'Waiting for pods to be ready...'
+                kubectl rollout status deployment/netflix-app --timeout=120s
+                kubectl get pods -o wide
+                kubectl get svc -o wide
+                """
             }
         }
     }
@@ -69,3 +67,6 @@ pipeline {
         }
     }
 }
+
+
+what is the out put
