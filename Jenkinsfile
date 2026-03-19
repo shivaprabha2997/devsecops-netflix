@@ -31,44 +31,45 @@ pipeline {
             }
         }
 
-        stage('Login to DockerHub') {
+        stage('Docker Login & Push (Fully Automated)') {
             steps {
-                sh 'docker logout || true'
                 withCredentials([usernamePassword(credentialsId: 'docker-creds', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
                     sh '''
-                    echo $PASS | docker login -u $USER --password-stdin
+                    rm -rf ~/.docker
+
+                    echo "$PASS" | docker login -u "$USER" --password-stdin
+
+                    docker push $DOCKER_IMAGE:latest
                     '''
                 }
             }
         }
 
-        stage('Push Image') {
-            steps {
-                sh 'docker push $DOCKER_IMAGE:latest'
-            }
-        }
-
         stage('Deploy to Kubernetes') {
             steps {
-                sh 'kubectl apply -f Kubernetes/deployment.yaml'
-                sh 'kubectl apply -f Kubernetes/service.yaml'
+                sh '''
+                kubectl apply -f Kubernetes/deployment.yaml
+                kubectl apply -f Kubernetes/service.yaml
+                '''
             }
         }
 
         stage('Verify Deployment') {
             steps {
-                sh 'kubectl get pods'
-                sh 'kubectl get svc'
+                sh '''
+                kubectl get pods
+                kubectl get svc
+                '''
             }
         }
     }
 
     post {
         success {
-            echo "✅ Pipeline executed successfully!"
+            echo "✅ Full CI/CD Pipeline Success!"
         }
         failure {
-            echo "❌ Pipeline failed. Check logs."
+            echo "❌ Pipeline Failed!"
         }
     }
 }
