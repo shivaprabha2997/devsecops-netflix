@@ -1,33 +1,79 @@
-post {
-    success {
-        emailext (
-            subject: "SUCCESS: Jenkins Pipeline - ${JOB_NAME}",
-            body: """
-            Build Successful!
+pipeline {
+    agent any
 
-            Job Name: ${JOB_NAME}
-            Build Number: ${BUILD_NUMBER}
-            Build URL: ${BUILD_URL}
-
-            Docker Image: ${DOCKER_HUB}/${IMAGE_NAME}:${IMAGE_TAG}
-            """,
-            to: 'veeraprasad.koduri@gmail.com'
-        )
+    environment {
+        DOCKER_HUB = 'veeradockerhub'
+        IMAGE_NAME = 'netflix-clone'
+        IMAGE_TAG  = 'latest'
+        KUBE_DEPLOY_PATH = 'Kubernetes/deployment.yml'
+        KUBE_SERVICE_PATH = 'Kubernetes/service.yml'
+        KUBECONFIG_PATH = '/var/lib/jenkins/.kube/config'  // <-- Explicit kubeconfig
     }
 
-    failure {
-        emailext (
-            subject: "FAILED: Jenkins Pipeline - ${JOB_NAME}",
-            body: """
-            Build Failed!
+    stages {
+        stage('Checkout Code') {
+            steps {
+                git url: 'https://github.com/veeraprasadkoduri-cmd/devsecops-netflix.git', branch: 'main'
+            }
+        }
 
-            Job Name: ${JOB_NAME}
-            Build Number: ${BUILD_NUMBER}
-            Build URL: ${BUILD_URL}
+        stage('Install Dependencies') {
+            steps {
+                sh 'npm install'
+            }
+        }
 
-            Please check Jenkins logs.
-            """,
-            to: 'veeraprasad.koduri@gmail.com'
-        )
+        stage('Build Docker Image') {
+            steps {
+                sh "docker build -t ${DOCKER_HUB}/${IMAGE_NAME}:${IMAGE_TAG} ."
+            }
+        }
+
+        stage('Docker Login & Push') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'docker-creds',  // <- Correct DockerHub credential ID
+                    usernameVariable: 'DOCKER_USER', 
+                    passwordVariable: 'DOCKER_PASS')]) {
+                    
+                    sh '''
+                        echo "Logging into Docker Hub..."
+                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+                        docker push ${DOCKER_HUB}/${IMAGE_NAME}:${IMAGE_TAG}
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                sh """
+                    export KUBECONFIG=${KUBECONFIG_PATH}
+                    kubectl apply -f ${KUBE_DEPLOY_PATH}
+                    kubectl apply -f ${KUBE_SERVICE_PATH}
+                """
+            }
+        }
+
+        stage('Verify Deployment') {
+            steps {
+                sh """
+                    export KUBECONFIG=${KUBECONFIG_PATH}
+                    echo 'Waiting for pods to be ready...'
+                    kubectl rollout status deployment/netflix-app --timeout=120s
+                    kubectl get pods -o wide
+                    kubectl get svc -o wide
+                """
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ Pipeline completed successfully!"
+        }
+        failure {
+            echo "❌ Pipeline failed!"
+        }
     }
 }
