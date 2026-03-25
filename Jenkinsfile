@@ -70,21 +70,17 @@ pipeline {
     }
 
     post {
-        success {
-            echo "✅ Pipeline completed successfully!"
-            emailext (
-                to: "${RECIPIENTS}",
-                subject: "Jenkins Pipeline Success: ${JOB_NAME} #${BUILD_NUMBER}",
-                body: "The pipeline completed successfully!\n\nJob: ${JOB_NAME}\nBuild: ${BUILD_NUMBER}\nCheck console output at ${BUILD_URL}"
-            )
-        }
-        failure {
-            echo "❌ Pipeline failed!"
-            emailext (
-                to: "${RECIPIENTS}",
-                subject: "Jenkins Pipeline Failed: ${JOB_NAME} #${BUILD_NUMBER}",
-                body: "The pipeline failed. Please check.\n\nJob: ${JOB_NAME}\nBuild: ${BUILD_NUMBER}\nCheck console output at ${BUILD_URL}"
-            )
-        }
+       success {
+        echo "✅ Pipeline completed successfully!"
+        emailext (
+            to: "${RECIPIENTS}",
+            subject: "Jenkins Pipeline Success: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+            body: """The pipeline completed successfully!
+            Job: ${env.JOB_NAME}
+            Build: ${env.BUILD_NUMBER}
+            Check console output at: ${env.BUILD_URL}"""
+        )
+    }
+       
     }
 }
