@@ -7,7 +7,8 @@ pipeline {
         IMAGE_TAG  = 'latest'
         KUBE_DEPLOY_PATH = 'Kubernetes/deployment.yml'
         KUBE_SERVICE_PATH = 'Kubernetes/service.yml'
-        KUBECONFIG_PATH = '/var/lib/jenkins/.kube/config'  // <-- Explicit kubeconfig
+        KUBECONFIG_PATH = '/var/lib/jenkins/.kube/config'  // Explicit kubeconfig
+        RECIPIENTS = 'veeraprasad.koduri@gmail.com'
     }
 
     stages {
@@ -32,7 +33,7 @@ pipeline {
         stage('Docker Login & Push') {
             steps {
                 withCredentials([usernamePassword(
-                    credentialsId: 'docker-creds',  // <- Correct DockerHub credential ID
+                    credentialsId: 'docker-creds',
                     usernameVariable: 'DOCKER_USER', 
                     passwordVariable: 'DOCKER_PASS')]) {
                     
@@ -71,9 +72,19 @@ pipeline {
     post {
         success {
             echo "✅ Pipeline completed successfully!"
+            emailext (
+                to: "${RECIPIENTS}",
+                subject: "Jenkins Pipeline Success: ${JOB_NAME} #${BUILD_NUMBER}",
+                body: "The pipeline completed successfully!\n\nJob: ${JOB_NAME}\nBuild: ${BUILD_NUMBER}\nCheck console output at ${BUILD_URL}"
+            )
         }
         failure {
             echo "❌ Pipeline failed!"
+            emailext (
+                to: "${RECIPIENTS}",
+                subject: "Jenkins Pipeline Failed: ${JOB_NAME} #${BUILD_NUMBER}",
+                body: "The pipeline failed. Please check.\n\nJob: ${JOB_NAME}\nBuild: ${BUILD_NUMBER}\nCheck console output at ${BUILD_URL}"
+            )
         }
     }
 }
