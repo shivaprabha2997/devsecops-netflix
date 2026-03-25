@@ -2,19 +2,19 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_HUB = 'veeradockerhub'
+        DOCKER_HUB = 'shivadocker2997'
         IMAGE_NAME = 'netflix-clone'
         IMAGE_TAG  = 'latest'
         KUBE_DEPLOY_PATH = 'Kubernetes/deployment.yml'
         KUBE_SERVICE_PATH = 'Kubernetes/service.yml'
         KUBECONFIG_PATH = '/var/lib/jenkins/.kube/config'  // Explicit kubeconfig
-        RECIPIENTS = 'veeraprasad.koduri@gmail.com'
+        RECIPIENTS = 'sivaprabha997@gmail.com'
     }
 
     stages {
         stage('Checkout Code') {
             steps {
-                git url: 'https://github.com/veeraprasadkoduri-cmd/devsecops-netflix.git', branch: 'main'
+                git url: 'https://github.com/shivaprabha2997/devsecops-netflix.git', branch: 'main'
             }
         }
 
@@ -33,7 +33,7 @@ pipeline {
         stage('Docker Login & Push') {
             steps {
                 withCredentials([usernamePassword(
-                    credentialsId: 'docker-creds',
+                    credentialsId: 'Docker_CRED',
                     usernameVariable: 'DOCKER_USER', 
                     passwordVariable: 'DOCKER_PASS')]) {
                     
